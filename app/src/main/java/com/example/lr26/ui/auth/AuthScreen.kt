@@ -11,13 +11,18 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 @Composable
 fun AuthScreen(
     viewModel: AuthViewModel = viewModel(),
-    onLoginSuccess: () -> Unit
+    onLoginSuccess: (Boolean) -> Unit
 ) {
     val state by viewModel.uiState.collectAsState()
+    val authResult by viewModel.authResult.collectAsState()
 
-    if (state.isLoggedIn) {
-        onLoginSuccess()
-        return
+    // Проверяем результат авторизации
+    LaunchedEffect(authResult) {
+        authResult?.let { success ->
+            if (success) {
+                onLoginSuccess(true)
+            }
+        }
     }
 
     Column(

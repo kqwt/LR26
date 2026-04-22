@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.lr26.ui.list.NotesListViewModel
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -21,7 +22,8 @@ import java.util.*
 @Composable
 fun NotesListScreen(
     viewModel: NotesListViewModel = viewModel(),
-    onNavigateToEdit: (String) -> Unit
+    onNavigateToEdit: (String) -> Unit,
+    onLogout: () -> Unit
 ) {
     val state by viewModel.uiState.collectAsState()
 
@@ -29,6 +31,14 @@ fun NotesListScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Мои заметки") },
+                actions = {
+                    IconButton(onClick = onLogout) {
+                        Icon(
+                            androidx.compose.material.icons.Icons.Default.Delete,
+                            contentDescription = "Выйти"
+                        )
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer

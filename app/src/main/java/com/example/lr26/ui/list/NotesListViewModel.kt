@@ -33,7 +33,7 @@ class NotesListViewModel : ViewModel() {
             if (notesList.isEmpty()) {
                 notesList.addAll(
                     listOf(
-                        Note("1", "Идеи для ЛР", "Изучить MVVM, Compose, Navigation", System.currentTimeMillis() - 86400000),
+                        Note("1", "ЛР", "Изучить MVVM, Compose, Navigation", System.currentTimeMillis() - 86400000),
                         Note("2", "Список покупок", "Молоко, хлеб, кофе, сахар", System.currentTimeMillis() - 172800000),
                         Note("3", "План на неделю", "Пн-Вт: лекции, Ср: лаба, Чт-Пт: доработка", System.currentTimeMillis() - 259200000)
                     )
@@ -48,7 +48,7 @@ class NotesListViewModel : ViewModel() {
     }
 
     fun addNote(note: Note) {
-        notesList.add(0, note) // Добавляем в начало
+        notesList.add(0, note)
         _uiState.value = _uiState.value.copy(notes = notesList.toList())
     }
 

@@ -13,10 +13,17 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 @Composable
 fun NoteEditScreen(
     viewModel: NoteEditViewModel = viewModel(),
-    onBack: () -> Unit,
-    onSaveNote: (Boolean) -> Unit
+    onBack: () -> Unit
 ) {
     val state by viewModel.uiState.collectAsState()
+    val navEvent by viewModel.navEvent.collectAsState(initial = null)
+
+    LaunchedEffect(navEvent) {
+        if (navEvent != null) {
+            onBack()
+            viewModel.resetNavEvent()
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -42,14 +49,10 @@ fun NoteEditScreen(
         ) {
             OutlinedTextField(
                 value = state.title,
-                onValueChange = {
-                    viewModel.updateTitle(it)
-                    viewModel.clearError()
-                },
+                onValueChange = { viewModel.updateTitle(it) },
                 label = { Text("Заголовок *") },
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                isError = state.error != null
+                singleLine = true
             )
 
             OutlinedTextField(
@@ -62,25 +65,12 @@ fun NoteEditScreen(
                 maxLines = 10
             )
 
-            state.error?.let { error ->
-                Text(
-                    text = error,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
-
             Row(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Button(
-                    onClick = {
-                        val savedNote = viewModel.saveNote()
-                        if (savedNote != null) {
-                            onSaveNote(state.noteId == "new")
-                        }
-                    },
+                    onClick = { viewModel.save() },
                     enabled = !state.isSaving && !state.isLoading,
                     modifier = Modifier.weight(1f)
                 ) {

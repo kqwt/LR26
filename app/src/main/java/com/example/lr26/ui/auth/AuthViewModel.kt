@@ -2,9 +2,8 @@ package com.example.lr26.ui.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.lr26.data.api.AuthApi
 import com.example.lr26.data.auth.TokenStorage
-import com.example.lr26.data.network.Resource
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -18,8 +17,9 @@ data class AuthUiState(
 )
 
 class AuthViewModel(
-    private val tokenStorage: TokenStorage,
-    private val authApi: AuthApi
+    private val tokenStorage: TokenStorage
+    // AuthApi удалён, так как используется заглушка.
+    // В ЛР 28 или при подключении реального бэкенда верните: private val authApi: AuthApi
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AuthUiState())
@@ -37,34 +37,39 @@ class AuthViewModel(
     }
 
     fun login() {
+        // 1. Клиентская валидация
         if (_uiState.value.email.isBlank() || _uiState.value.password.length < 4) {
             _uiState.value = _uiState.value.copy(
-                error = "Заполните поля корректно",
+                error = "Введите email и пароль (мин. 4 символа)",
                 isLoading = false
             )
             return
         }
 
         viewModelScope.launch {
+            // 2. Состояние загрузки
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
 
-            when (val result = authApi.login(_uiState.value.email, _uiState.value.password)) {
-                is Resource.Success -> {
-                    result.data?.let { token ->
-                        tokenStorage.saveToken(token)
-                        _authResult.value = true
-                    }
-                    _uiState.value = _uiState.value.copy(isLoading = false)
-                }
-                is Resource.Error -> {
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        error = result.message ?: "Ошибка авторизации"
-                    )
-                }
-                is Resource.Loading -> {
-                    // Уже установлено isLoading = true выше
-                }
+            try {
+                // 3. ЗАГЛУШКА: имитация задержки сети (1.5 сек)
+                delay(1500)
+
+                // 4. Генерация фейкового токена
+                val fakeToken = "stub_token_${System.currentTimeMillis()}"
+
+                // 5. Сохранение в защищённое хранилище
+                tokenStorage.saveToken(fakeToken)
+
+                // 6. Успешный вход
+                _uiState.value = _uiState.value.copy(isLoading = false)
+                _authResult.value = true
+
+            } catch (e: Exception) {
+                // Обработка ошибок сохранения или непредвиденных сбоев
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    error = "Ошибка: ${e.message}"
+                )
             }
         }
     }
@@ -72,5 +77,9 @@ class AuthViewModel(
     fun logout() {
         tokenStorage.clearToken()
         _authResult.value = false
+    }
+
+    fun resetAuthResult() {
+        _authResult.value = null
     }
 }

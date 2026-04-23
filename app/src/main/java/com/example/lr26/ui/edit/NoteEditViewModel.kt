@@ -3,48 +3,38 @@ package com.example.lr26.ui.edit
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.lr26.data.model.Note
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import com.example.lr26.data.network.Resource
+import com.example.lr26.data.repository.NotesRepository
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.*
 
 data class NoteEditUiState(
     val noteId: String = "new",
     val title: String = "",
     val content: String = "",
     val isSaving: Boolean = false,
-    val isLoading: Boolean = false,
-    val error: String? = null
+    val isLoading: Boolean = false
 )
 
-class NoteEditViewModel : ViewModel() {
+class NoteEditViewModel(private val repository: NotesRepository) : ViewModel() {
     private val _uiState = MutableStateFlow(NoteEditUiState())
     val uiState: StateFlow<NoteEditUiState> = _uiState.asStateFlow()
 
-    private val existingNotes = mutableMapOf<String, Note>()
+    private val _navEvent = MutableStateFlow<Boolean?>(null)
+    val navEvent: StateFlow<Boolean?> = _navEvent.asStateFlow()
 
-    fun initNoteId(id: String) {
+    fun initNote(id: String) {
         _uiState.value = _uiState.value.copy(noteId = id, isLoading = true)
 
         if (id != "new") {
             viewModelScope.launch {
+                // Заглушка - в реальной реализации загрузка с сервера
                 kotlinx.coroutines.delay(300)
-                val existingNote = existingNotes[id]
-                if (existingNote != null) {
-                    _uiState.value = _uiState.value.copy(
-                        title = existingNote.title,
-                        content = existingNote.content,
-                        isLoading = false
-                    )
-                } else {
-                    _uiState.value = _uiState.value.copy(
-                        title = "Заметка $id",
-                        content = "Содержимое заметки",
-                        isLoading = false
-                    )
-                }
+                _uiState.value = _uiState.value.copy(
+                    title = "Загрузка...",
+                    content = "Данные заметки",
+                    isLoading = false
+                )
             }
         } else {
             _uiState.value = _uiState.value.copy(isLoading = false)
@@ -59,35 +49,37 @@ class NoteEditViewModel : ViewModel() {
         _uiState.value = _uiState.value.copy(content = content)
     }
 
-    fun saveNote(): Note? {
-        val state = _uiState.value
-        if (state.title.isBlank()) {
-            _uiState.value = state.copy(error = "Заголовок не может быть пустым")
-            return null
-        }
-
-        _uiState.value = state.copy(isSaving = true, error = null)
-
-        val note = Note(
-            id = if (state.noteId == "new") UUID.randomUUID().toString() else state.noteId,
-            title = state.title.trim(),
-            content = state.content.trim(),
-            createdAt = System.currentTimeMillis(),
-            isFavorite = false,
-            userId = "user1"
-        )
-
-        existingNotes[note.id] = note
+    fun save() {
+        if (_uiState.value.title.isBlank()) return
 
         viewModelScope.launch {
-            kotlinx.coroutines.delay(500)
+            _uiState.value = _uiState.value.copy(isSaving = true)
+
+            val note = Note(
+                id = if (_uiState.value.noteId == "new")
+                    java.util.UUID.randomUUID().toString()
+                else _uiState.value.noteId,
+                title = _uiState.value.title.trim(),
+                content = _uiState.value.content.trim(),
+                createdAt = System.currentTimeMillis(),
+                userId = "user1"
+            )
+
+            when (repository.saveNote(note)) {
+                is Resource.Success -> {
+                    _navEvent.value = true
+                }
+                is Resource.Error -> {
+                    // Обработка ошибки
+                }
+                is Resource.Loading -> {}
+            }
+
             _uiState.value = _uiState.value.copy(isSaving = false)
         }
-
-        return note
     }
 
-    fun clearError() {
-        _uiState.value = _uiState.value.copy(error = null)
+    fun resetNavEvent() {
+        _navEvent.value = null
     }
 }

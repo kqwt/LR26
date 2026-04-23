@@ -5,10 +5,15 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.example.lr26.data.api.AuthApi
+import com.example.lr26.data.api.NoteApi
 import com.example.lr26.data.auth.TokenStorage
+import com.example.lr26.data.local.NotesCache
+import com.example.lr26.data.repository.NotesRepository
 import com.example.lr26.ui.auth.AuthScreen
 import com.example.lr26.ui.auth.AuthViewModel
 import com.example.lr26.ui.edit.NoteEditScreen
+import com.example.lr26.ui.edit.NoteEditViewModel
 import com.example.lr26.ui.list.NotesListScreen
 import com.example.lr26.ui.list.NotesListViewModel
 
@@ -16,35 +21,54 @@ import com.example.lr26.ui.list.NotesListViewModel
 fun AppNavHost(
     navController: NavHostController,
     tokenStorage: TokenStorage,
-    authViewModel: AuthViewModel,
-    notesViewModel: NotesListViewModel
+    authApi: AuthApi,
+    noteApi: NoteApi,
+    notesCache: NotesCache
 ) {
-    val isAuthorized = tokenStorage.getToken() != null
-    val startDest = if (isAuthorized) Screen.NotesList.route else Screen.Auth.route
+    val isAuth = tokenStorage.getToken() != null
+    val start = if (isAuth) Screen.NotesList.route else Screen.Auth.route
 
-    NavHost(navController = navController, startDestination = startDest) {
+    val notesRepo = remember { NotesRepository(noteApi) }
+
+    NavHost(navController = navController, startDestination = start) {
         composable(Screen.Auth.route) {
-            AuthScreen(viewModel = authViewModel) { success ->
-                if (success) navController.navigate(Screen.NotesList.route) {
+            AuthScreen(
+                viewModel = viewModel { AuthViewModel(tokenStorage) }
+            ) {
+                navController.navigate(Screen.NotesList.route) {
                     popUpTo(Screen.Auth.route) { inclusive = true }
                 }
             }
         }
+
         composable(Screen.NotesList.route) {
             NotesListScreen(
-                viewModel = notesViewModel,
-                onNavigateToEdit = { id -> navController.navigate(Screen.NoteEdit.createRoute(id)) },
+                viewModel = viewModel { NotesListViewModel(notesRepo) },
+                onNavigateToEdit = { id ->
+                    navController.navigate(Screen.NoteEdit.createRoute(id))
+                },
                 onLogout = {
-                    authViewModel.logout()
-                    navController.navigate(Screen.Auth.route) { popUpTo(0) { inclusive = true } }
+                    tokenStorage.clearToken()
+                    navController.navigate(Screen.Auth.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
                 }
             )
         }
-        composable(Screen.NoteEdit.route) { backStack ->
-            val noteId = backStack.arguments?.getString("noteId") ?: "new"
+
+        composable(Screen.NoteEdit.route) { backStackEntry ->
+            val noteId = backStackEntry.arguments?.getString("id") ?: "new"
+            val editViewModel: NoteEditViewModel = viewModel {
+                NoteEditViewModel(notesRepo)
+            }
+
+            LaunchedEffect(noteId) {
+                editViewModel.initNote(noteId)
+            }
+
             NoteEditScreen(
-                onBack = { navController.popBackStack() },
-                onSaveSuccess = { navController.popBackStack() }
+                viewModel = editViewModel,
+                onBack = { navController.popBackStack() }
             )
         }
     }
